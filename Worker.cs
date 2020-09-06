@@ -155,6 +155,9 @@ namespace sqlserver.tools.queryrecompile
                     if (connection.State != ConnectionState.Open) connection.Open();
                     connection.ChangeDatabase(DatabaseName);
 
+                    /*
+                     * Setup and Get OBJECT_SCHEMA_NAME Parameters
+                    */
                     string SchemaName = "dbo";
                     string sp_OBJECT_SCHEMA_NAME_query = "SELECT OBJECT_SCHEMA_NAME(@object_id, @database_id) AS SchemaName";
                     var sp_OBJECT_SCHEMA_NAME_parameters = new DynamicParameters();
@@ -168,6 +171,9 @@ namespace sqlserver.tools.queryrecompile
                         SchemaName = sp_OBJECT_SCHEMA_NAME_stored_proc_result;
                     }
 
+                    /*
+                     * Setup xp_logevent parameters
+                    */
                     string xp_logevent_stored_proc = "[master].[dbo].[xp_logevent]";
                     var xp_logevent_parameters = new DynamicParameters();
                     int xp_logevent_error_number = 313377;
@@ -176,25 +182,25 @@ namespace sqlserver.tools.queryrecompile
                     xp_logevent_parameters.Add("@error_number", xp_logevent_error_number, DbType.Int32, ParameterDirection.Input);
                     xp_logevent_parameters.Add("@message", xp_logevent_message, DbType.String, ParameterDirection.Input, xp_logevent_message.Length);
 
-
+                    /*
+                     * Setup sp_recompile parameters
+                    */
                     string sp_recompile_stored_proc = "[dbo].[sp_recompile]";
 
-                    _ = connection.Query(xp_logevent_stored_proc, xp_logevent_parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
+                    var sp_recompile_objectNameFull = getSp_recompile_objectNameFull(ObjectName, SchemaName);
 
-                    var sp_recompile_objectNameFull = SchemaName + '.' + ObjectName;
-                    
                     var sp_recompile_parameters = new DynamicParameters();
                     sp_recompile_parameters.Add("@objname", sp_recompile_objectNameFull, DbType.String, ParameterDirection.Input, sp_recompile_objectNameFull.Length);
                     //We want to change the database context, the connection should be open now.
 
-                    //This fires off the master database
                     try
                     {
                         _ = connection.Query(xp_logevent_stored_proc, xp_logevent_parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
                         _ = connection.Query(sp_recompile_stored_proc, sp_recompile_parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
 
                         _logger.LogInformation($"{GetFormattedDateTime()}: Recompiled: DatabaseName: {DatabaseName}, SchemaName: {SchemaName}, ObjectName: {ObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {ClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
-                    } catch
+                    }
+                    catch
                     {
                         _logger.LogError($"{GetFormattedDateTime()}: Error: DatabaseName: {DatabaseName}, SchemaName: {SchemaName}, ObjectName: {ObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {ClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
                     }
@@ -204,6 +210,11 @@ namespace sqlserver.tools.queryrecompile
             {
                 _logger.LogInformation($"\t{GetFormattedDateTime()}: DatabaseName: {DatabaseName}, ObjectName: {ObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {ClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
             }
+        }
+
+        private static string getSp_recompile_objectNameFull(string ObjectName, string SchemaName)
+        {
+            return '[' + SchemaName + "].[" + ObjectName + ']';
         }
 
         private double XEvent_GetDurationField_Seconds(ulong xeDurationField)
