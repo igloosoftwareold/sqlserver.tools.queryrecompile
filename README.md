@@ -5,6 +5,20 @@ Add the "QueriesOverOneSecond_Loop" to your SQL Server (.\Extra\ExtendedEvents\Q
 
 Configure your SQL Server in the appsettings.json file, use appsettings.Development.json as a template.
 
+**ConnectionStrings**
+Add your Database Server here and any additional connection string information.
+```
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=databaseServer;Database=master;Trusted_Connection=True;"
+  }
+```
+
+**XelSessionName**
+If you've changed the name of the XelSessionName from the default make sure to change it here.
+```
+  "XelSessionName": "QueriesOverOneSecond_Loop",
+```
+```
     "DatabaseProcTemplates": [
       {
         "DatabaseName": "LongQueries",
@@ -17,6 +31,7 @@ Configure your SQL Server in the appsettings.json file, use appsettings.Developm
         "ObjectName": "NotDbo_delayme"
       }
     ]
+```
 
 **DatabaseName**
 The Database Name that you want to filter by.
@@ -27,7 +42,7 @@ This currently is just for show.
 **ObjectName**
 The ObjectName to filter by.
 
-**Example output**:
+**Example output**
 ```
 info: sqlserver.tools.queryrecompile.Worker[0]
       ExtendedEventsStreamConsumer running at: 09/06/2020 17:54:41 -04:00
