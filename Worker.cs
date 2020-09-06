@@ -111,14 +111,18 @@ namespace sqlserver.tools.queryrecompile
             //TODO: Command Line Option to toggle this
             //String xeStatementField = (String)xevent.Fields["statement"].ToString();//We ignore the Statement because it'd make this very large.
             int xeDatabaseId = XEvent_GetDatabaseId(xEvent);
+            int xeObjectId = XEvent_GetObjectId(xEvent);
+
             ulong xeDurationField = XEvent_GetDurationField(xEvent);
+            
             string xeClientAppNameAction = XEvent_GetClientAppNameAction(xEvent);
             double DurationField_Seconds = XEvent_GetDurationField_Seconds(xeDurationField);
             string DatabaseName = XEvent_GetDatabaseName(xEvent);
+            
 
             if (_DatabasesAndProcs.Where(kvp => kvp.Key.ToUpper() == DatabaseName.ToUpper() && kvp.Value.ToUpper() == xeObjectName.ToUpper()).Any())
             {
-                RecompileQuery(xeObjectName, xeClientAppNameAction, DurationField_Seconds, DatabaseName);
+                RecompileQuery(xeClientAppNameAction, DurationField_Seconds, DatabaseName, xeObjectName, xeDatabaseId, xeObjectId);
 #if DEBUG
                 {
 
@@ -131,9 +135,9 @@ namespace sqlserver.tools.queryrecompile
         }
 
         private Dictionary<string, RecompileCounter> CurrentCounters = new Dictionary<string, RecompileCounter>();
-        private void RecompileQuery(string xeObjectName, string xeClientAppNameAction, double DurationField_Seconds, string DatabaseName)
+        private void RecompileQuery(string ClientAppNameAction, double DurationField_Seconds, string DatabaseName, string ObjectName, int DatabaseId, int ObjectId)
         {
-            string CounterKey = $"{DatabaseName}:{xeObjectName}";
+            string CounterKey = $"{DatabaseName}:{ObjectName}";
 
             if (CurrentCounters.ContainsKey(CounterKey))
             {
@@ -146,37 +150,59 @@ namespace sqlserver.tools.queryrecompile
 
             if (CurrentCounters[CounterKey].CanQueryBeRecompiled() || CurrentCounters[CounterKey].HasThresholdPassed())
             {
-                _logger.LogInformation($"{GetFormattedDateTime()}: Recompiling: DatabaseName: {DatabaseName}, ObjectName: {xeObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {xeClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
-                string xp_logevent_stored_proc = "[master].[dbo].xp_logevent";
-                var xp_logevent_parameters = new DynamicParameters();
-                int xp_logevent_error_number = 313377;
-                string xp_logevent_message = $"Recompiling: DatabaseName: {DatabaseName}, ObjectName: {xeObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {xeClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}";
-
-                xp_logevent_parameters.Add("@error_number", xp_logevent_error_number, DbType.Int32, ParameterDirection.Input);
-                xp_logevent_parameters.Add("@message", xp_logevent_message, DbType.String, ParameterDirection.Input, xp_logevent_message.Length);
-
-
-                string sp_recompile_stored_proc = "[dbo].sp_recompile";
-                var sp_recompile_parameters = new DynamicParameters();
-
-                var sp_recompile_objectName = xeObjectName;
-
-                sp_recompile_parameters.Add("@objname", sp_recompile_objectName, DbType.String, ParameterDirection.Input, sp_recompile_objectName.Length);
-
                 using (var connection = new SqlConnection(_connectionString))
                 {
-                    //We want to change the database context, the connection should be open now.
                     if (connection.State != ConnectionState.Open) connection.Open();
                     connection.ChangeDatabase(DatabaseName);
 
-                    //This fires off the master database
+                    string SchemaName = "dbo";
+                    string sp_OBJECT_SCHEMA_NAME_query = "SELECT OBJECT_SCHEMA_NAME(@object_id, @database_id) AS SchemaName";
+                    var sp_OBJECT_SCHEMA_NAME_parameters = new DynamicParameters();
+                    sp_OBJECT_SCHEMA_NAME_parameters.Add("@object_id", ObjectId, DbType.Int32, ParameterDirection.Input);
+                    sp_OBJECT_SCHEMA_NAME_parameters.Add("@database_id", DatabaseId, DbType.Int32, ParameterDirection.Input);
+
+                    string sp_OBJECT_SCHEMA_NAME_stored_proc_result = connection.Query<string>(sp_OBJECT_SCHEMA_NAME_query, sp_OBJECT_SCHEMA_NAME_parameters, commandType: System.Data.CommandType.Text).SingleOrDefault();
+
+                    if (sp_OBJECT_SCHEMA_NAME_stored_proc_result != null && sp_OBJECT_SCHEMA_NAME_stored_proc_result.Length > 0)
+                    {
+                        SchemaName = sp_OBJECT_SCHEMA_NAME_stored_proc_result;
+                    }
+
+                    string xp_logevent_stored_proc = "[master].[dbo].[xp_logevent]";
+                    var xp_logevent_parameters = new DynamicParameters();
+                    int xp_logevent_error_number = 313377;
+                    string xp_logevent_message = $"Recompiling: DatabaseName: {DatabaseName}, ObjectName: {ObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {ClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}";
+
+                    xp_logevent_parameters.Add("@error_number", xp_logevent_error_number, DbType.Int32, ParameterDirection.Input);
+                    xp_logevent_parameters.Add("@message", xp_logevent_message, DbType.String, ParameterDirection.Input, xp_logevent_message.Length);
+
+
+                    string sp_recompile_stored_proc = "[dbo].[sp_recompile]";
+
                     _ = connection.Query(xp_logevent_stored_proc, xp_logevent_parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
-                    _ = connection.Query(sp_recompile_stored_proc, sp_recompile_parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
+
+                    var sp_recompile_objectNameFull = SchemaName + '.' + ObjectName;
+                    
+                    var sp_recompile_parameters = new DynamicParameters();
+                    sp_recompile_parameters.Add("@objname", sp_recompile_objectNameFull, DbType.String, ParameterDirection.Input, sp_recompile_objectNameFull.Length);
+                    //We want to change the database context, the connection should be open now.
+
+                    //This fires off the master database
+                    try
+                    {
+                        _ = connection.Query(xp_logevent_stored_proc, xp_logevent_parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
+                        _ = connection.Query(sp_recompile_stored_proc, sp_recompile_parameters, commandType: System.Data.CommandType.StoredProcedure).SingleOrDefault();
+
+                        _logger.LogInformation($"{GetFormattedDateTime()}: Recompiled: DatabaseName: {DatabaseName}, SchemaName: {SchemaName}, ObjectName: {ObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {ClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
+                    } catch
+                    {
+                        _logger.LogError($"{GetFormattedDateTime()}: Error: DatabaseName: {DatabaseName}, SchemaName: {SchemaName}, ObjectName: {ObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {ClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
+                    }
                 }
             }
             else
             {
-                _logger.LogInformation($"\t{GetFormattedDateTime()}: DatabaseName: {DatabaseName}, ObjectName: {xeObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {xeClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
+                _logger.LogInformation($"\t{GetFormattedDateTime()}: DatabaseName: {DatabaseName}, ObjectName: {ObjectName}, Duration: {DurationField_Seconds:0.00}, Client App: {ClientAppNameAction}, How Many In Last {CurrentCounters[CounterKey].QueryThreshold} Seconds: {CurrentCounters[CounterKey].GetValue()}");
             }
         }
 
@@ -193,6 +219,11 @@ namespace sqlserver.tools.queryrecompile
         private ulong XEvent_GetDurationField(IXEvent xEvent)
         {
             return (ulong)xEvent.Fields["duration"];
+        }
+
+        private int XEvent_GetObjectId(IXEvent xEvent)
+        {
+            return (int)xEvent.Fields["object_id"];
         }
 
         private int XEvent_GetDatabaseId(IXEvent xEvent)
