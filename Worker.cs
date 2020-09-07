@@ -133,7 +133,9 @@ namespace sqlserver.tools.queryrecompile
 
             if (_databaseProcOptions.Value.RecompileQueriesNotOnList)
             {
-                RecompileQuery(xeClientAppNameAction, DurationField_Seconds, DatabaseName, xeObjectName, xeDatabaseId, xeObjectId, OnTheList);
+                int QueryCountLimitNotOnList = (_databaseProcOptions != null && _databaseProcOptions.Value != null) ? _databaseProcOptions.Value.QueryCountLimitNotOnList : 2;
+                
+                RecompileQuery(xeClientAppNameAction, DurationField_Seconds, DatabaseName, xeObjectName, xeDatabaseId, xeObjectId, OnTheList, QueryCountLimitNotOnList);
             }
             
             //return xEventCustoms;
@@ -141,7 +143,7 @@ namespace sqlserver.tools.queryrecompile
         }
 
         private readonly Dictionary<string, RecompileCounter> CurrentCounters = new Dictionary<string, RecompileCounter>();
-        private void RecompileQuery(string ClientAppNameAction, double DurationField_Seconds, string DatabaseName, string ObjectName, int DatabaseId, int ObjectId, bool OnTheList = false)
+        private void RecompileQuery(string ClientAppNameAction, double DurationField_Seconds, string DatabaseName, string ObjectName, int DatabaseId, int ObjectId, bool OnTheList = false, int QueryCountLimitNotOnList = 2)
         {
             string CounterKey = $"{DatabaseName}:{ObjectName}";
 
@@ -162,7 +164,7 @@ namespace sqlserver.tools.queryrecompile
             }
 
             if (
-                CurrentCounters[CounterKey].CanQueryBeRecompiled(OnTheList) || CurrentCounters[CounterKey].HasThresholdPassed()
+                CurrentCounters[CounterKey].CanQueryBeRecompiled(OnTheList, QueryCountLimitNotOnList) || CurrentCounters[CounterKey].HasThresholdPassed()
             )
             {
                 using SqlConnection connection = new SqlConnection(_connectionString);
