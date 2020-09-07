@@ -19,16 +19,16 @@ namespace sqlserver.tools.queryrecompile.Models
             return Interlocked.Increment(ref this.currentValue);
         }
 
-        public bool CanQueryBeRecompiled(bool OnTheList)
+        public bool CanQueryBeRecompiled(bool OnTheList, int QueryCountLimitNotOnList = 2)
         {
             lock (currentValueLock)
             {
                 if (OnTheList && this.currentValue == 0)
                 {
                     return true;
-                } else if (!OnTheList && this.currentValue > 2)
+                } else if (!OnTheList && this.currentValue >= QueryCountLimitNotOnList)
                 {
-                    this.Reset();
+                    this.Reset(OnTheList);
                     return true;
                 }
             }
@@ -57,14 +57,22 @@ namespace sqlserver.tools.queryrecompile.Models
             }
         }
 
-        public void Reset()
+        public void Reset(bool OnTheList=true)
         {
             lock (currentValueLock)
             {
                 lock (currentDateLock)
                 {
                     this.currentDate = DateTime.Now;
-                    this.currentValue = 1;
+                    if (OnTheList)
+                    {
+                        //We set this to 1 for Queries on the list.
+                        this.currentValue = 1;
+                    } else
+                    {
+                        //We set this to 0 for queries not on the list.
+                        this.currentValue = 0;
+                    }
                 }
             }
         }
