@@ -130,8 +130,11 @@ namespace sqlserver.tools.queryrecompile
                 }
 #endif
             }
-            
-            RecompileQuery(xeClientAppNameAction, DurationField_Seconds, DatabaseName, xeObjectName, xeDatabaseId, xeObjectId, OnTheList);
+
+            if (_databaseProcOptions.Value.RecompileQueriesNotOnList)
+            {
+                RecompileQuery(xeClientAppNameAction, DurationField_Seconds, DatabaseName, xeObjectName, xeDatabaseId, xeObjectId, OnTheList);
+            }
             
             //return xEventCustoms;
             return Task.CompletedTask;
