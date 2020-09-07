@@ -19,17 +19,22 @@ namespace sqlserver.tools.queryrecompile.Models
             return Interlocked.Increment(ref this.currentValue);
         }
 
-        public bool CanQueryBeRecompiled()
+        public bool CanQueryBeRecompiled(bool OnTheList)
         {
             lock (currentValueLock)
             {
-                if (this.currentValue == 0)
+                if (OnTheList && this.currentValue == 0)
                 {
+                    return true;
+                } else if (!OnTheList && this.currentValue > 2)
+                {
+                    this.Reset();
                     return true;
                 }
             }
             return false;
         }
+
         public bool HasThresholdPassed()
         {
             lock (currentDateLock)
