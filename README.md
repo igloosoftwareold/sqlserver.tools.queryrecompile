@@ -19,6 +19,9 @@ If you've changed the name of the XelSessionName from the default make sure to c
   "XelSessionName": "QueriesOverOneSecond_Loop",
 ```
 ```
+  "DatabaseQueryThreshold": {
+    "RecompileQueriesNotOnList": "true",
+    "QueryCountLimitNotOnList": 2,
     "DatabaseProcTemplates": [
       {
         "DatabaseName": "LongQueries",
@@ -31,7 +34,13 @@ If you've changed the name of the XelSessionName from the default make sure to c
         "ObjectName": "NotDbo_delayme"
       }
     ]
+  }
 ```
+**RecompileQueriesNotOnList**
+True/False: Enable Recompile for Queries not on the list
+
+**QueryCountLimitNotOnList**
+Integer: How many times a query can occur in 35 seconds before it triggers a recompile.
 
 **DatabaseName**
 The Database Name that you want to filter by.
