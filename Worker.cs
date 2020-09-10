@@ -73,15 +73,13 @@ namespace sqlserver.tools.queryrecompile
             var xeStream = new XELiveEventStreamer(_connectionString, _sessionName);
 
 
-            /*
             Task waitTask = Task.Run(() =>
             {
                 _logger.LogInformation("Press any key to stop listening...");
-                while (!stoppingToken.IsCancellationRequested) { }
+                Console.ReadKey();
                 _logger.LogInformation($"\t\t\t\tStop Process XEL File:\t{GetFormattedDateTime()}\n");
                 cancellationTokenSource.Cancel();
             });
-            */
 
             Task readTask = xeStream.ReadEventStream(() =>
             {
@@ -104,7 +102,7 @@ namespace sqlserver.tools.queryrecompile
             {
                 while (!stoppingToken.IsCancellationRequested) { }
                 _logger.LogInformation("Cancellation Token Requested");
-                //Task.WaitAny(readTask);
+                Task.WaitAny(readTask);
             }
             catch (TaskCanceledException)
             {
