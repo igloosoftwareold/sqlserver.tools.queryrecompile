@@ -37,13 +37,23 @@ namespace sqlserver.tools.queryrecompile
                 _DatabasesAndProcs.Add(new KeyValuePair<string, string>(_databaseProcOption.DatabaseName, _databaseProcOption.ObjectName));
             }
         }
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Stopping Service");
+            await base.StopAsync(cancellationToken);
+        }
 
+        public override void Dispose()
+        {
+            _logger.LogInformation("Disposing Service");
+            base.Dispose();
+        }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("ExtendedEventsStreamConsumer running at: {time}", DateTimeOffset.Now);
-                await ProcessXelStream();
+                await ProcessXelStream(stoppingToken);
                 await Task.Delay(1000, stoppingToken);
             }
         }
@@ -53,7 +63,7 @@ namespace sqlserver.tools.queryrecompile
             return DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        private Task ProcessXelStream()
+        private Task ProcessXelStream(CancellationToken stoppingToken)
         {
             var cancellationTokenSource = new CancellationTokenSource();
             _logger.LogInformation($"\t\t\t\tStart Process XEL File:\t{GetFormattedDateTime()}");
@@ -61,6 +71,7 @@ namespace sqlserver.tools.queryrecompile
             List<XEventCustom> xEventCustoms = new List<XEventCustom>();
 
             var xeStream = new XELiveEventStreamer(_connectionString, _sessionName);
+
 
             Task waitTask = Task.Run(() =>
             {
@@ -77,7 +88,8 @@ namespace sqlserver.tools.queryrecompile
             },
                 xevent =>
                 {
-                    var syncTask = new Task(() => {
+                    var syncTask = new Task(() =>
+                    {
                         ProcessXEvent(xevent);
                     });
                     syncTask.RunSynchronously();
@@ -88,7 +100,9 @@ namespace sqlserver.tools.queryrecompile
 
             try
             {
-                Task.WaitAny(waitTask, readTask);
+                while (!stoppingToken.IsCancellationRequested) { }
+                _logger.LogInformation("Cancellation Token Requested");
+                Task.WaitAny(readTask);
             }
             catch (TaskCanceledException)
             {
@@ -308,10 +322,6 @@ namespace sqlserver.tools.queryrecompile
             }
 
             return DatabaseName;
-        }
-        public override void Dispose()
-        {
-            // DO YOUR STUFF HERE
         }
     }
 }
