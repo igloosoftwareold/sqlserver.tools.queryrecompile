@@ -78,6 +78,7 @@ namespace sqlserver.tools.queryrecompile
                 _logger.LogInformation("Press any key to stop listening...");
                 Console.ReadKey();
                 _logger.LogInformation($"\t\t\t\tStop Process XEL File:\t{GetFormattedDateTime()}\n");
+                _logger.LogInformation("Cancellation Token Requested");
                 cancellationTokenSource.Cancel();
             });
 
@@ -100,9 +101,7 @@ namespace sqlserver.tools.queryrecompile
 
             try
             {
-                while (!stoppingToken.IsCancellationRequested) { }
-                _logger.LogInformation("Cancellation Token Requested");
-                Task.WaitAny(readTask);
+                Task.WaitAny(readTask, waitTask);
             }
             catch (TaskCanceledException)
             {
@@ -253,22 +252,22 @@ namespace sqlserver.tools.queryrecompile
 
         private string XEvent_GetClientAppNameAction(IXEvent xEvent)
         {
-            return xEvent.Actions["client_app_name"].ToString();
+            return xEvent.Actions.ContainsKey("client_app_name") ? xEvent.Actions["client_app_name"].ToString() : "";
         }
 
         private ulong XEvent_GetDurationField(IXEvent xEvent)
         {
-            return (ulong)xEvent.Fields["duration"];
+            return xEvent.Fields.ContainsKey("duration") ? (ulong)xEvent.Fields["duration"] : 0;
         }
 
         private int XEvent_GetObjectId(IXEvent xEvent)
         {
-            return (int)xEvent.Fields["object_id"];
+            return xEvent.Fields.ContainsKey("object_id") ? (int)xEvent.Fields["object_id"] : 0;
         }
 
         private int XEvent_GetDatabaseId(IXEvent xEvent)
         {
-            return (ushort)xEvent.Actions["database_id"];
+            return xEvent.Actions.ContainsKey("database_id") ? (ushort)xEvent.Actions["database_id"] : 0;
         }
 
 #if DEBUG
