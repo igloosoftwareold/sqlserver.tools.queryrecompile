@@ -1,39 +1,23 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.EventLog;
+using App.WindowsService;
 using sqlserver.tools.queryrecompile.Models;
 
-namespace sqlserver.tools.queryrecompile
-{
-    public class Program
+using IHost host = Host.CreateDefaultBuilder(args)
+    .UseWindowsService(options =>
     {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
+        options.ServiceName = "SQL Server Recompiler";
+    })
+    .ConfigureServices((hostContext, services) =>
+    {
+        IConfiguration configuration = hostContext.Configuration;
+        services.AddSingleton<RecompileService>();
+        services.Configure<DatabaseProcOptions>(configuration.GetSection("DatabaseQueryThreshold"));
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddHostedService<WindowsBackgroundService>();
+    })
+    .Build();
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-            .UseWindowsService()
-            .ConfigureLogging((context, logging) =>
-            {
-                logging.ClearProviders();
-                logging.AddConsole();
-                logging.AddEventLog(eventLogSettings =>
-                {
-                    eventLogSettings.SourceName = "Application";
-                });
-            })
-            .ConfigureServices((hostContext, services) =>
-            {
-                IConfiguration configuration = hostContext.Configuration;
-                services.AddOptions();
-                services.Configure<DatabaseProcOptions>(configuration.GetSection("DatabaseQueryThreshold"));
-                services.AddSingleton<IConfiguration>(configuration);
-                services.AddHostedService<Worker>();
-            }
-            );
-    }
+try
+{
+    await host.RunAsync();
 }
+catch { }

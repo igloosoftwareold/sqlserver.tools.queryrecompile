@@ -19,15 +19,15 @@
         ///<Summary>
         /// XEvent Database Name
         ///</Summary>
-        public string DatabaseName { get; set; }
+        public string? DatabaseName { get; set; }
         ///<Summary>
         /// XEvent Object Name
         ///</Summary>
-        public string ObjectName { get; set; }
+        public string? ObjectName { get; set; }
         ///<Summary>
         /// XEvent Timestamp
         ///</Summary>
-        public string Timestamp { get; set; }
+        public string? Timestamp { get; set; }
         /*
         ///<Summary>
         /// XEvent Duration Nano
@@ -41,11 +41,11 @@
         ///<Summary>
         /// XEvent Client AppName
         ///</Summary>
-        public string ClientAppName { get; set; }
+        public string? ClientAppName { get; set; }
         ///<Summary>
         /// XEvent Client HostName
         ///</Summary>
-        public string ClientHostName { get; set; }
+        public string? ClientHostName { get; set; }
         ///<Summary>
         /// XEvent Write Format Out
         ///</Summary>

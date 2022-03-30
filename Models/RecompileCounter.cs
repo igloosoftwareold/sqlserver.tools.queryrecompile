@@ -1,34 +1,32 @@
-﻿using System;
-using System.Threading;
-
-namespace sqlserver.tools.queryrecompile.Models
+﻿namespace sqlserver.tools.queryrecompile.Models
 {
     public sealed class RecompileCounter
     {
         //We start at one.
-        private readonly object currentValueLock = new object();
+        private readonly object currentValueLock = new();
         private volatile int currentValue = 0;
 
-        private readonly object currentDateLock = new object();
+        private readonly object currentDateLock = new();
         private DateTime currentDate = DateTime.Now;
 
         public int QueryThreshold = 35;
 
         public int NextValue()
         {
-            return Interlocked.Increment(ref this.currentValue);
+            return Interlocked.Increment(ref currentValue);
         }
 
         public bool CanQueryBeRecompiled(bool OnTheList, int QueryCountLimitNotOnList = 2)
         {
             lock (currentValueLock)
             {
-                if (OnTheList && this.currentValue == 0)
+                if (OnTheList && currentValue == 0)
                 {
                     return true;
-                } else if (!OnTheList && this.currentValue >= QueryCountLimitNotOnList)
+                }
+                else if (!OnTheList && currentValue >= QueryCountLimitNotOnList)
                 {
-                    this.Reset(OnTheList);
+                    Reset(OnTheList);
                     return true;
                 }
             }
@@ -42,7 +40,7 @@ namespace sqlserver.tools.queryrecompile.Models
                 TimeSpan _TimeSpan = DateTime.Now.Subtract(currentDate);
                 if (_TimeSpan.TotalSeconds > QueryThreshold)
                 {
-                    this.Reset();
+                    Reset();
                     return true;
                 }
             }
@@ -53,25 +51,26 @@ namespace sqlserver.tools.queryrecompile.Models
         {
             lock (currentValueLock)
             {
-                return this.currentValue;
+                return currentValue;
             }
         }
 
-        public void Reset(bool OnTheList=true)
+        public void Reset(bool OnTheList = true)
         {
             lock (currentValueLock)
             {
                 lock (currentDateLock)
                 {
-                    this.currentDate = DateTime.Now;
+                    currentDate = DateTime.Now;
                     if (OnTheList)
                     {
                         //We set this to 1 for Queries on the list.
-                        this.currentValue = 1;
-                    } else
+                        currentValue = 1;
+                    }
+                    else
                     {
                         //We set this to 0 for queries not on the list.
-                        this.currentValue = 0;
+                        currentValue = 0;
                     }
                 }
             }
@@ -89,7 +88,7 @@ namespace sqlserver.tools.queryrecompile.Models
             {
                 lock (currentDateLock)
                 {
-                    this.currentDate = (DateTime)value;
+                    currentDate = value;
                 }
             }
         }
