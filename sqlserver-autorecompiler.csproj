@@ -7,7 +7,7 @@
     <UserSecretsId>dotnet-sqlserver_autorecompiler-2E337DC7-B59C-432C-B3A6-AEAFB97DBC62</UserSecretsId>
     <RootNamespace>sqlserver_autorecompiler</RootNamespace>
     <Platforms>AnyCPU;x64</Platforms>
-    <Version>1.0.3$(VersionPrefix)</Version>
+    <Version>1.0.4$(VersionPrefix)</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
