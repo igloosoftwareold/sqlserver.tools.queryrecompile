@@ -26,7 +26,10 @@ public class RecompileService
 
         foreach (DatabaseProcTemplate? _databaseProcOption in _databaseProcOptions.Value.DatabaseProcTemplates.ToList())
         {
-            _DatabasesAndProcs.Add(new KeyValuePair<string, string>(_databaseProcOption.DatabaseName, _databaseProcOption.ObjectName));
+            if (_databaseProcOption.DatabaseName is string _databaseProcOption_DatabaseName && _databaseProcOption.ObjectName is string _databaseProcOption_ObjectName)
+            {
+                _DatabasesAndProcs.Add(new KeyValuePair<string, string>(_databaseProcOption_DatabaseName, _databaseProcOption_ObjectName));
+            }
         }
     }
 

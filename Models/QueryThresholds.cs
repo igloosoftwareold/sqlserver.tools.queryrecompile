@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-namespace sqlserver.tools.queryrecompile.Models
+﻿namespace sqlserver.tools.queryrecompile.Models
 {
     public class DatabaseProcOptions
     {
@@ -9,9 +8,9 @@ namespace sqlserver.tools.queryrecompile.Models
     }
     public class DatabaseProcTemplate
     {
-        public string DatabaseName { get; set; }
-        public string ObjectName { get; set; }
-        public string SchemaName { get; set; }
+        public string? DatabaseName { get; set; }
+        public string? ObjectName { get; set; }
+        public string? SchemaName { get; set; }
         /*
         DateTime LastRecompileDate { get; set; }
         DateTime TimeBetweenRecompiles { get; set; }
