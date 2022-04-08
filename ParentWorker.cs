@@ -21,12 +21,12 @@ namespace sqlserver_autorecompiler
                 List<Task>? workers = new();
                 foreach (DatabaseProcOptions? databaseProcOption in _databaseProcOptions)
                 {
-                    workers.Add(Task.Run(() => DoRealWork(databaseProcOption, stoppingToken), stoppingToken));
+                    workers.Add(Task.Run(() => RunXelWorkers(databaseProcOption, stoppingToken), stoppingToken));
                 }
                 await Task.WhenAll(workers.ToArray());
             }
         }
-        private async Task DoRealWork(DatabaseProcOptions databaseProcOption, CancellationToken stoppingToken)
+        private async Task RunXelWorkers(DatabaseProcOptions databaseProcOption, CancellationToken stoppingToken)
         {
             RecompileService? s = new(_logger, databaseProcOption);
             await s.ProcessXelStream(stoppingToken);
