@@ -65,6 +65,7 @@ public class RecompileService
         }
         catch (TaskCanceledException)
         {
+            return Task.CompletedTask;
         }
 
         if (readTask.IsFaulted)
