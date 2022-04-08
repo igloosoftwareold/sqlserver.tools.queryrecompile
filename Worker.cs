@@ -2,12 +2,11 @@ namespace App.WindowsService;
 
 public sealed class WindowsBackgroundService : BackgroundService
 {
-    private readonly RecompileService _recompileService;
     private readonly ILogger<WindowsBackgroundService> _logger;
 
-    public WindowsBackgroundService(RecompileService recompileService, ILogger<WindowsBackgroundService> logger)
+    public WindowsBackgroundService(ILogger<WindowsBackgroundService> logger)
     {
-        (_recompileService, _logger) = (recompileService, logger);
+        (_logger) = (logger);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -15,9 +14,22 @@ public sealed class WindowsBackgroundService : BackgroundService
         _logger.LogInformation("Starting");
         while (!stoppingToken.IsCancellationRequested)
         {
-            await _recompileService.ProcessXelStream(stoppingToken);
-            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+            List<Task>? workers = new();
+            foreach (int delay in new List<int>() { 1000, 2000, 3000 })
+            {
+                workers.Add(DoRealWork(delay, stoppingToken));
+            }
+
+            await Task.WhenAll(workers.ToArray());
         }
         _logger.LogInformation("Exiting.");
+    }
+    private async Task DoRealWork(int delay, CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("worker {delay} checking in at {time}", delay, DateTimeOffset.Now);
+            await Task.Delay(delay, stoppingToken);
+        }
     }
 }

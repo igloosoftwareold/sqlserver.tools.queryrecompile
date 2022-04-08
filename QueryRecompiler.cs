@@ -1,6 +1,5 @@
 ﻿using Dapper;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Options;
 using Microsoft.SqlServer.XEvent.XELite;
 using sqlserver.tools.queryrecompile.Models;
 using System.Data;
@@ -9,22 +8,19 @@ namespace App.WindowsService;
 public class RecompileService
 {
 
-    //private readonly ILogger<Worker> _logger;
     private readonly ILogger _logger;
-    private readonly IConfiguration _configuration;
-    private readonly IOptions<DatabaseProcOptions> _databaseProcOptions;
+    public DatabaseProcOptions _databaseProcOption;
     private readonly string _connectionString;
     private readonly string _sessionName;
     private readonly List<KeyValuePair<string, string>> _DatabasesAndProcs = new(10);
-    public RecompileService(ILogger<WindowsBackgroundService> logger, IConfiguration configuration, IOptions<DatabaseProcOptions> databaseProcOptions)
+    public RecompileService(ILogger<WindowsBackgroundService> logger, DatabaseProcOptions databaseProcOption)
     {
         _logger = logger;
-        _configuration = configuration;
-        _databaseProcOptions = databaseProcOptions;
-        _connectionString = _configuration.GetConnectionString("DefaultConnection"); //;@"Server=d-sqlca1;Database=master;Trusted_Connection=True;";
-        _sessionName = _configuration.GetValue<string>("XelSessionName");//;"QueriesOverOneSecond_Loop";
+        _databaseProcOption = databaseProcOption;
+        _connectionString = _databaseProcOption.ConnectionStringsDefaultConnection;
+        _sessionName = _databaseProcOption.XelSessionName;
 
-        foreach (DatabaseProcTemplate? _databaseProcOption in _databaseProcOptions.Value.DatabaseProcTemplates.ToList())
+        foreach (DatabaseProcTemplate? _databaseProcOption in _databaseProcOption.DatabaseProcTemplates)
         {
             if (_databaseProcOption.DatabaseName is string _databaseProcOption_DatabaseName && _databaseProcOption.ObjectName is string _databaseProcOption_ObjectName)
             {
@@ -102,9 +98,9 @@ public class RecompileService
                 OnTheList = true;
             }
 
-            if (_databaseProcOptions.Value.RecompileQueriesNotOnList)
+            if (_databaseProcOption.RecompileQueriesNotOnList || OnTheList)
             {
-                int QueryCountLimitNotOnList = (_databaseProcOptions != null && _databaseProcOptions.Value != null) ? _databaseProcOptions.Value.QueryCountLimitNotOnList : 2;
+                int QueryCountLimitNotOnList = (_databaseProcOption != null) ? _databaseProcOption.QueryCountLimitNotOnList : 2;
 
                 RecompileQuery(xeClientAppNameAction, DurationField_Seconds, DatabaseName, xeObjectName, xeDatabaseId, xeObjectId, OnTheList, QueryCountLimitNotOnList);
             }
@@ -154,9 +150,7 @@ public class RecompileService
             }
         }
 
-        if (
-            CurrentCounters[CounterKey].CanQueryBeRecompiled(OnTheList, QueryCountLimitNotOnList) || CurrentCounters[CounterKey].HasThresholdPassed()
-        )
+        if (CurrentCounters[CounterKey].CanQueryBeRecompiled(OnTheList, QueryCountLimitNotOnList) || CurrentCounters[CounterKey].HasThresholdPassed())
         {
             using SqlConnection connection = new(_connectionString);
             if (connection.State != ConnectionState.Open)

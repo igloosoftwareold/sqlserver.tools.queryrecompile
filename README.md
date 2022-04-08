@@ -19,7 +19,7 @@ If you've changed the name of the XelSessionName from the default make sure to c
   "XelSessionName": "QueriesOverOneSecond_Loop",
 ```
 ```
-  "DatabaseQueryThreshold": {
+  "DatabaseProcOptions": {
     "RecompileQueriesNotOnList": "true",
     "QueryCountLimitNotOnList": 2,
     "DatabaseProcTemplates": [
